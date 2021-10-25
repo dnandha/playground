@@ -1,8 +1,6 @@
 from stable_baselines3 import PPO
 import pommerman
 from pommerman import agents
-from pommerman.envs.v0 import Pomme
-from pommerman.configs import ffa_v0_fast_env
 
 agent_list = [
     agents.RandomAgent(),
@@ -11,8 +9,6 @@ agent_list = [
     agents.RandomAgent(),
 ]
 
-#args = ffa_v0_fast_env()['env_kwargs']
-#env = Pomme(**args, agent_list)
 env = pommerman.make('PommeFFACompetition-v03', agent_list)
 
 model = PPO('MlpPolicy', env, verbose=1)
@@ -25,4 +21,4 @@ for i in range(1000):
     obs, reward, done, info = env.step(action)
     env.render()
     if done:
-      obs = env.reset()
+        obs = env.reset()
