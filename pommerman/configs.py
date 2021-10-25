@@ -57,6 +57,27 @@ def ffa_competition_env():
     return locals()
 
 
+def ffa_competition_sb3_env():
+    """Start up a FFA config with the competition settings."""
+    env = envs.v03.Pomme
+    game_type = constants.GameType.FFA
+    env_entry_point = 'pommerman.envs.v03:Pomme'
+    env_id = 'PommeFFACompetition-v03'
+    env_kwargs = {
+        'game_type': game_type,
+        'board_size': constants.BOARD_SIZE,
+        'num_agents': 4,  # DEBUG: hardcoded
+        'num_rigid': constants.NUM_RIGID,
+        'num_wood': constants.NUM_WOOD,
+        'num_items': constants.NUM_ITEMS,
+        'max_steps': constants.MAX_STEPS,
+        'render_fps': constants.RENDER_FPS,
+        'env': env_entry_point,
+    }
+    agent = characters.Bomber
+    return locals()
+
+
 def ffa_competition_fast_env():
     """Start up a FFA config with the competition settings."""
     env = envs.v0.Pomme
