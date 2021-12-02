@@ -40,5 +40,13 @@ class TensorForceAgent(BaseAgent):
                     dict(type='dense', size=64)
                 ],
                 batching_capacity=1000,
-                step_optimizer=dict(type='adam', learning_rate=1e-4))
+                step_optimizer=dict(type='adam', learning_rate=1e-4),
+                summarizer=dict(directory="./runs/tfagent",
+                            labels=['configuration',
+                                'gradients_scalar',
+                                'regularization',
+                                'inputs',
+                                'losses',
+                                'variables']
+                        ), )
         return None

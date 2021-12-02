@@ -22,6 +22,8 @@ import gym
 from pommerman import helpers, make
 from pommerman.agents import TensorForceAgent
 
+from tensorboardX import SummaryWriter
+
 
 CLIENT = docker.from_env()
 
@@ -43,6 +45,7 @@ class WrappedEnv(OpenAIGym):
         if self.visualize:
             self.gym.render()
 
+        import pdb; pdb.set_trace()
         actions = self.unflatten_action(action=action)
 
         obs = self.gym.get_observations()
@@ -55,11 +58,20 @@ class WrappedEnv(OpenAIGym):
 
     def reset(self):
         obs = self.gym.reset()
-        agent_obs = self.gym.featurize(obs[3])
+        agent_obs = self.gym.featurize(obs[self.gym.training_agent])
         return agent_obs
 
 
+
+
 def main():
+    #writer = SummaryWriter('runs/exp-1')
+
+    #def eps_finished(r):
+    #    writer.add_scalar('reward', r.episode_rewards[-1], r.episode)
+    #    writer.add_scalar('timesteps', r.timestep, r.episode)
+    #    return True
+
     '''CLI interface to bootstrap taining'''
     parser = argparse.ArgumentParser(description="Playground Flags.")
     parser.add_argument("--game", default="pommerman", help="Game to choose.")
@@ -135,11 +147,13 @@ def main():
 
     # Create a Proximal Policy Optimization agent
     agent = training_agent.initialize(env)
+    agent.restore_model(directory="./", file="checkpoints-2096192")
 
     atexit.register(functools.partial(clean_up_agents, agents))
     wrapped_env = WrappedEnv(env, visualize=args.render)
     runner = Runner(agent=agent, environment=wrapped_env)
-    runner.run(episodes=10, max_episode_timesteps=2000)
+    runner.run(episodes=10000, max_episode_timesteps=2000)#, episode_finished=eps_finished)
+    #agent.save_model("./checkpoints")
     print("Stats: ", runner.episode_rewards, runner.episode_timesteps,
           runner.episode_times)
 
