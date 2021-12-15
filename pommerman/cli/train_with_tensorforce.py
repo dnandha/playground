@@ -95,13 +95,6 @@ class WrappedEnv(OpenAIGym):
 
 
 def main():
-    #writer = SummaryWriter('runs/exp-1')
-
-    #def eps_finished(r):
-    #    writer.add_scalar('reward', r.episode_rewards[-1], r.episode)
-    #    writer.add_scalar('timesteps', r.timestep, r.episode)
-    #    return True
-
     '''CLI interface to bootstrap taining'''
     parser = argparse.ArgumentParser(description="Playground Flags.")
     parser.add_argument("--game", default="pommerman", help="Game to choose.")
@@ -193,7 +186,7 @@ def main():
     atexit.register(functools.partial(clean_up_agents, agents))
     wrapped_env = WrappedEnv(env, visualize=args.render)
     runner = Runner(agent=agent, environment=wrapped_env)
-    runner.run(episodes=10000, max_episode_timesteps=2000, testing=args.checkpoint)#, episode_finished=eps_finished)
+    runner.run(episodes=100000, max_episode_timesteps=1000, testing=args.checkpoint)
     if not args.checkpoint:
         print("Saving model")
         agent.save_model("./checkpoints")
