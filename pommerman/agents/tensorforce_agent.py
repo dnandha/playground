@@ -4,6 +4,8 @@ A Work-In-Progress agent using Tensorforce
 from . import BaseAgent
 from .. import characters
 
+from gym import spaces
+from tensorforce.agents import PPOAgent
 
 class TensorForceAgent(BaseAgent):
     """The TensorForceAgent. Acts through the algorith, not here."""
@@ -16,10 +18,7 @@ class TensorForceAgent(BaseAgent):
         """This agent has its own way of inducing actions. See train_with_tensorforce."""
         return None
 
-    def initialize(self, env):
-        from gym import spaces
-        from tensorforce.agents import PPOAgent
-
+    def initialize(self, env, logpath):
         if self.algorithm == "ppo":
             if type(env.action_space) == spaces.Tuple:
                 actions = {
@@ -41,7 +40,7 @@ class TensorForceAgent(BaseAgent):
                 ],
                 batching_capacity=1000,
                 step_optimizer=dict(type='adam', learning_rate=1e-4),
-                summarizer=dict(directory="./runs/tfagent",
+                summarizer=dict(directory=logpath,
                             labels=['configuration',
                                 'gradients_scalar',
                                 'regularization',

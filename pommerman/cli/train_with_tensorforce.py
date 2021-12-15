@@ -24,6 +24,8 @@ from pommerman.agents import TensorForceAgent
 
 from tensorboardX import SummaryWriter
 
+from pommerman.agents import action_prune
+from pommerman.constants import Action
 
 CLIENT = docker.from_env()
 
@@ -41,19 +43,47 @@ class WrappedEnv(OpenAIGym):
         self.gym = gym
         self.visualize = visualize
 
+    def reward_proc(self, action, obs, next_obs, reward):
+        reward = reward
+
+        # check if proposed action is valid
+        valid_actions = action_prune.get_filtered_actions(obs,
+                                                          prev_two_obs=[None, None])  # TODO: try out
+
+        # if not, give negative reward
+        if valid_actions and action not in valid_actions:
+            reward = -1.0
+
+        # TODO: check next_obs for powerup and give small reward
+
+        return reward
+
     def execute(self, action):
         if self.visualize:
             self.gym.render()
 
-        import pdb; pdb.set_trace()
-        actions = self.unflatten_action(action=action)
-
+        # get current state
         obs = self.gym.get_observations()
+
+        # get other player actions
         all_actions = self.gym.act(obs)
+        # insert own action
+        actions = self.unflatten_action(action=action)
         all_actions.insert(self.gym.training_agent, actions)
+
+        # step the env
         state, reward, terminal, _ = self.gym.step(all_actions)
         agent_state = self.gym.featurize(state[self.gym.training_agent])
-        agent_reward = reward[self.gym.training_agent]
+
+        # get next state
+        next_obs = self.gym.get_observations()
+
+        # shape reward
+        agent_reward = self.reward_proc(action,
+                                        obs[self.gym.training_agent],
+                                        next_obs[self.gym.training_agent],
+                                        reward[self.gym.training_agent])
+
         return agent_state, terminal, agent_reward
 
     def reset(self):
@@ -114,12 +144,20 @@ def main():
         default=None,
         help="File from which to load game state. Defaults to "
         "None.")
+    parser.add_argument(
+        "--logpath",
+        default="./runs",
+        help="Log path")
+    parser.add_argument(
+        "--checkpoint",
+        default="",
+        help="Load checkpoint")
     args = parser.parse_args()
 
     config = args.config
-    record_pngs_dir = args.record_pngs_dir
-    record_json_dir = args.record_json_dir
-    agent_env_vars = args.agent_env_vars
+    #record_pngs_dir = args.record_pngs_dir
+    #record_json_dir = args.record_json_dir
+    #agent_env_vars = args.agent_env_vars
     game_state_file = args.game_state_file
 
     # TODO: After https://github.com/MultiAgentLearning/playground/pull/40
@@ -146,14 +184,20 @@ def main():
         os.makedirs(args.record_json_dir)
 
     # Create a Proximal Policy Optimization agent
-    agent = training_agent.initialize(env)
-    agent.restore_model(directory="./", file="checkpoints-2096192")
+    agent = training_agent.initialize(env, args.logpath)
+
+    if args.checkpoint:
+        print("Restoring model")
+        agent.restore_model(directory="./", file=args.checkpoint)
 
     atexit.register(functools.partial(clean_up_agents, agents))
     wrapped_env = WrappedEnv(env, visualize=args.render)
     runner = Runner(agent=agent, environment=wrapped_env)
-    runner.run(episodes=10000, max_episode_timesteps=2000)#, episode_finished=eps_finished)
-    #agent.save_model("./checkpoints")
+    runner.run(episodes=10000, max_episode_timesteps=2000, testing=args.checkpoint)#, episode_finished=eps_finished)
+    if not args.checkpoint:
+        print("Saving model")
+        agent.save_model("./checkpoints")
+
     print("Stats: ", runner.episode_rewards, runner.episode_timesteps,
           runner.episode_times)
 
