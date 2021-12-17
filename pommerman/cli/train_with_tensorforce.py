@@ -15,17 +15,19 @@ import os
 
 import argparse
 import docker
-from tensorforce.execution import Runner
 from tensorforce.contrib.openai_gym import OpenAIGym
-import gym
 
 from pommerman import helpers, make
 from pommerman.agents import TensorForceAgent
 
 from tensorboardX import SummaryWriter
 
+from pommerman.runner.tf_runner import Runner
 from pommerman.agents import action_prune
 from pommerman.constants import Action
+
+import numpy as np
+
 
 CLIENT = docker.from_env()
 
@@ -52,11 +54,45 @@ class WrappedEnv(OpenAIGym):
 
         # if not, give negative reward
         if valid_actions and action not in valid_actions:
-            reward = -1.0
+            reward += -0.1
 
         # TODO: check next_obs for powerup and give small reward
 
         return reward
+
+    def featurize(self, obs):
+        mobs = np.zeros((obs['board'].shape[0], obs['board'].shape[1], 24))
+
+        # each type of board item gets own channel
+        for i in range(0, 14):
+            mobs[:, :, i] = np.array(obs['board'] == i, dtype=np.float)
+
+        mobs[:, :, 14] = obs['bomb_blast_strength'] / 10.  # max bs = 10
+        mobs[:, :, 15] = obs['bomb_life'] / 10.  # default bl = 9
+        mobs[:, :, 16] = obs['flame_life'] / 2.  # default = 2
+
+        # only relevant for kicks, but anyways ... four different directions
+        for i in range(1, 5):
+            mobs[:, :, 17+i] = np.array(obs['bomb_moving_direction'] == i,
+                                        dtype=np.float)
+
+        # ammo, blast strength, kick at agent pos as extra channels
+        pos = obs['position']
+        mobs[pos[1], pos[0], 21] = np.float(obs['can_kick'])
+        mobs[pos[1], pos[0], 22] = obs['ammo']/10.  # max = 10
+        mobs[pos[1], pos[0], 23] = obs['blast_strength']/10. # max = 10
+
+        # center board around agent position
+        # not good: game borders + local information gets lost over time
+        #board_center = np.array(obs['board'].shape) // 2
+        #pos_shift = board_center - pos
+        #mobs = np.roll(mobs, pos_shift[0], axis=1)
+        #mobs = np.roll(mobs, pos_shift[1], axis=0)
+
+        # TODO: teammates and enemies for radio
+
+        #return np.expand_dims(mobs, axis=0)  # batch
+        return mobs
 
     def execute(self, action):
         if self.visualize:
@@ -73,7 +109,8 @@ class WrappedEnv(OpenAIGym):
 
         # step the env
         state, reward, terminal, _ = self.gym.step(all_actions)
-        agent_state = self.gym.featurize(state[self.gym.training_agent])
+
+        agent_state = self.featurize(state[self.gym.training_agent])
 
         # get next state
         next_obs = self.gym.get_observations()
@@ -88,7 +125,7 @@ class WrappedEnv(OpenAIGym):
 
     def reset(self):
         obs = self.gym.reset()
-        agent_obs = self.gym.featurize(obs[self.gym.training_agent])
+        agent_obs = self.featurize(obs[self.gym.training_agent])
         return agent_obs
 
 
@@ -179,15 +216,16 @@ def main():
     # Create a Proximal Policy Optimization agent
     agent = training_agent.initialize(env, args.logpath)
 
-    if args.checkpoint:
+    testing = True if args.checkpoint else False
+    if testing:
         print("Restoring model")
         agent.restore_model(directory="./", file=args.checkpoint)
 
     atexit.register(functools.partial(clean_up_agents, agents))
     wrapped_env = WrappedEnv(env, visualize=args.render)
     runner = Runner(agent=agent, environment=wrapped_env)
-    runner.run(episodes=100000, max_episode_timesteps=1000, testing=args.checkpoint)
-    if not args.checkpoint:
+    runner.run(episodes=100000, max_episode_timesteps=1000, testing=testing)
+    if not testing:
         print("Saving model")
         agent.save_model("./checkpoints")
 

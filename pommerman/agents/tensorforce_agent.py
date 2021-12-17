@@ -31,12 +31,18 @@ class TensorForceAgent(BaseAgent):
             else:
                 actions = dict(type='int', num_actions=env.action_space.n)
 
+            bs = 11  # TODO: get boardsize from env
             return PPOAgent(
-                states=dict(type='float', shape=env.observation_space.shape),
+                states=dict(type='float', shape=(bs, bs, 24)),
                 actions=actions,
                 network=[
+                    #dict(type='linear_normalization'),
+                    dict(type='conv2d', size=32),
+                    dict(type='conv2d', size=64),
+                    dict(type='conv2d', size=12),
+                    dict(type='flatten'),
                     dict(type='dense', size=64),
-                    dict(type='dense', size=64)
+                    dict(type='dense', size=32),
                 ],
                 batching_capacity=1000,
                 step_optimizer=dict(type='adam', learning_rate=1e-4),
