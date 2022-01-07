@@ -1,4 +1,4 @@
-from stable_baselines3 import PPO
+from stable_baselines3 import DQN
 import pommerman
 from pommerman import agents
 
@@ -11,7 +11,7 @@ agent_list = [
 
 env = pommerman.make('PommeFFACompetition-v03', agent_list)
 
-model = PPO('MlpPolicy', env, verbose=1)
+model = DQN('MlpPolicy', env, verbose=1)
 model.learn(total_timesteps=10000)
 
 obs = env.reset()
@@ -19,7 +19,6 @@ for i in range(1000):
     action, _state = model.predict(obs, deterministic=True)
     print(action)
     obs, reward, done, info = env.step(action)
-    import pdb; pdb.set_trace()
     env.render()
     if done:
         obs = env.reset()

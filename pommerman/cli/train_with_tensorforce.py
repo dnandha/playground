@@ -25,6 +25,7 @@ from tensorboardX import SummaryWriter
 from pommerman.runner.tf_runner import Runner
 from pommerman.agents import action_prune
 from pommerman.constants import Action
+from pommerman.envs.v0 import Pomme
 
 import numpy as np
 
@@ -44,13 +45,13 @@ class WrappedEnv(OpenAIGym):
     def __init__(self, gym, visualize=False):
         self.gym = gym
         self.visualize = visualize
+        self.prev_obs = [None, None]
 
-    def reward_proc(self, action, obs, next_obs, reward):
-        reward = reward
-
+    def reward_proc(self, action, reward):
         # check if proposed action is valid
+        obs = self.gym.get_observations()[self.gym.training_agent]
         valid_actions = action_prune.get_filtered_actions(obs,
-                                                          prev_two_obs=[None, None])  # TODO: try out
+                                                          prev_two_obs=self.prev_obs)
 
         # if not, give negative reward
         if valid_actions and action not in valid_actions:
@@ -60,7 +61,40 @@ class WrappedEnv(OpenAIGym):
 
         return reward
 
+    def get_actions(self):
+        n = 0
+        for space in self.gym.env.action_space.spaces:
+            n += space.n
+        return np.arange(n)
+
+    def get_action_mask(self, obs):
+        valid_actions = action_prune.get_filtered_actions(obs,
+                                                          prev_two_obs=self.prev_obs)
+        return np.in1d(self.get_actions(), valid_actions)
+
+    def act_split(self, act):
+        res = [0 for _ in range(len(self.gym.env.action_space.spaces))]
+        for i, space in enumerate(self.gym.env.action_space.spaces):
+            j = i * space.n
+            k = (i+1) * space.n
+            if act >= j and act < k:
+                res[i] = act - j
+        return res
+
+    def one_hot_radio(self, x):
+        size = self.gym.env._radio_vocab_size
+        return np.in1d(np.arange(size), x)
+
     def featurize(self, obs):
+        ret = Pomme.featurize(obs)
+        if 'message' in obs:
+            message = np.concatenate([self.one_hot_radio(x) for x in obs['message']])
+        else:
+            message = []
+            #message = np.zeros(self.gym.env._radio_num_words*self.gym.env._radio_vocab_size)
+        return np.concatenate((ret, message))
+
+    def featurize_cnn(self, obs):
         mobs = np.zeros((obs['board'].shape[0], obs['board'].shape[1], 24))
 
         # each type of board item gets own channel
@@ -94,39 +128,56 @@ class WrappedEnv(OpenAIGym):
         #return np.expand_dims(mobs, axis=0)  # batch
         return mobs
 
+    def action_valid(self, obs, action):
+        #if action > self.gym.env.action_space.spaces[0].n:
+        #    return True
+        valid_actions = action_prune.get_filtered_actions(obs,
+                                                          prev_two_obs=self.prev_obs)
+        # only interested in physical actions
+        if action is dict:
+            return action['0'] in valid_actions
+        else:
+            return action in valid_actions
+
     def execute(self, action):
         if self.visualize:
             self.gym.render()
 
         # get current state
         obs = self.gym.get_observations()
+        self.prev_obs[0] = self.prev_obs[1]
+        self.prev_obs[1] = obs[self.gym.training_agent]
+        agent_obs = obs[self.gym.training_agent]
+        #if not self.action_valid(agent_obs, action):
+        #    return self.featurize_cnn(agent_obs), True, -1.
 
         # get other player actions
         all_actions = self.gym.act(obs)
         # insert own action
-        actions = self.unflatten_action(action=action)
-        all_actions.insert(self.gym.training_agent, actions)
+        #actions = self.unflatten_action(action=action)
+        #action = self.act_split(action)
+        if action is dict:
+            action = list(action.values())
+        all_actions.insert(self.gym.training_agent, action)
 
         # step the env
-        state, reward, terminal, _ = self.gym.step(all_actions)
+        obs, reward, terminal, _ = self.gym.step(all_actions)
 
-        agent_state = self.featurize(state[self.gym.training_agent])
+        agent_obs = obs[self.gym.training_agent]
 
-        # get next state
-        next_obs = self.gym.get_observations()
+        #agent_state = dict(state=self.featurize(agent_obs), action_mask=self.get_action_mask(agent_obs))
 
         # shape reward
-        agent_reward = self.reward_proc(action,
-                                        obs[self.gym.training_agent],
-                                        next_obs[self.gym.training_agent],
-                                        reward[self.gym.training_agent])
+        #agent_reward = self.reward_proc(action,
+        #                                reward[self.gym.training_agent])
+        agent_reward = reward[self.gym.training_agent]
 
-        return agent_state, terminal, agent_reward
+        return self.featurize_cnn(agent_obs), terminal, agent_reward
 
     def reset(self):
-        obs = self.gym.reset()
-        agent_obs = self.featurize(obs[self.gym.training_agent])
-        return agent_obs
+        agent_obs = self.gym.reset()[self.gym.training_agent]
+        agent_state = self.featurize_cnn(agent_obs)
+        return agent_state
 
 
 
@@ -224,7 +275,7 @@ def main():
     atexit.register(functools.partial(clean_up_agents, agents))
     wrapped_env = WrappedEnv(env, visualize=args.render)
     runner = Runner(agent=agent, environment=wrapped_env)
-    runner.run(episodes=100000, max_episode_timesteps=1000, testing=testing)
+    runner.run(episodes=3000, max_episode_timesteps=1000, testing=testing)
     if not testing:
         print("Saving model")
         agent.save_model("./checkpoints")

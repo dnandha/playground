@@ -108,8 +108,8 @@ class Runner(BaseRunner):
                     action = self.agent.act(states=state, deterministic=deterministic)
 
                     state, terminal, reward = self.environment.execute(action=action)
-                    if terminal:
-                        print("Got terminal, last action", Action(action).name)
+                    #if terminal:
+                    #    print("Got terminal, last action", Action(action).name)
 
                     if max_episode_timesteps is not None and self.current_timestep >= max_episode_timesteps:
                         print("Terminate due to max steps")

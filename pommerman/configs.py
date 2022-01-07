@@ -92,6 +92,8 @@ def ffa_competition_fast_env():
         'num_items': constants.NUM_ITEMS,
         'max_steps': constants.MAX_STEPS,
         'render_fps': 1000,
+        'agent_view_size': constants.AGENT_VIEW_SIZE,
+        'is_partially_observable': True,
         'env': env_entry_point,
     }
     agent = characters.Bomber

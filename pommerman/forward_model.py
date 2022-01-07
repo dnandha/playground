@@ -577,6 +577,7 @@ class ForwardModel(object):
             return True
         elif game_type == constants.GameType.FFA or game_type == constants.GameType.OneVsOne:
             if training_agent is not None and training_agent not in alive_ids:
+                print("Agent dead")
                 return True
             return len(alive) <= 1
         elif any([

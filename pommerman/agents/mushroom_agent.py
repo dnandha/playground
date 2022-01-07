@@ -4,8 +4,6 @@ A Work-In-Progress agent using Tensorforce
 from . import BaseAgent
 from .. import characters
 
-from gym import spaces
-from tensorforce.agents import PPOAgent
 
 class TensorForceAgent(BaseAgent):
     """The TensorForceAgent. Acts through the algorith, not here."""
@@ -18,39 +16,32 @@ class TensorForceAgent(BaseAgent):
         """This agent has its own way of inducing actions. See train_with_tensorforce."""
         return None
 
-    def initialize(self, env, logpath):
+    def initialize(self, env):
+        from gym import spaces
+        from tensorforce.agents import PPOAgent
+
         if self.algorithm == "ppo":
             if type(env.action_space) == spaces.Tuple:
                 actions = {
                     str(num): {
-                        'type': 'int',
+                        'type': int,
                         'num_actions': space.n
                     }
                     for num, space in enumerate(env.action_space.spaces)
                 }
-                #n = 0
-                #for space in env.action_space.spaces:
-                #    n += space.n
-
-                #actions = dict(type='int', num_actions=n)
             else:
                 actions = dict(type='int', num_actions=env.action_space.n)
 
             return PPOAgent(
-                #states=dict(type='float', shape=env.observation_space.shape),
-                states=dict(type='float', shape=(env.env._board_size, env.env._board_size, 24)),
+                states=dict(type='float', shape=env.observation_space.shape),
                 actions=actions,
                 network=[
-                    dict(type='conv2d', size=32),
-                    dict(type='conv2d', size=64),
-                    dict(type='conv2d', size=32),
-                    dict(type='flatten'),
                     dict(type='dense', size=64),
-                    dict(type='dense', size=32),
+                    dict(type='dense', size=64)
                 ],
                 batching_capacity=1000,
                 step_optimizer=dict(type='adam', learning_rate=1e-4),
-                summarizer=dict(directory=logpath,
+                summarizer=dict(directory="./runs/tfagent",
                             labels=['configuration',
                                 'gradients_scalar',
                                 'regularization',
