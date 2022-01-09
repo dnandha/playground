@@ -104,17 +104,18 @@ def make_board(size, num_rigid=0, num_wood=0, num_agents=4):
                 coordinates.remove(position)
 
         # Exclude breathing room on either side of the agents.
-        for i in range(2, 4):
-            coordinates.remove((1, i))
-            coordinates.remove((i, 1))
-            coordinates.remove((size - 2, size - i - 1))
-            coordinates.remove((size - i - 1, size - 2))
+        if size > 4:
+            for i in range(2, 4):
+                coordinates.remove((1, i))
+                coordinates.remove((i, 1))
+                coordinates.remove((size - 2, size - i - 1))
+                coordinates.remove((size - i - 1, size - 2))
 
-            if num_agents == 4:
-                coordinates.remove((1, size - i - 1))
-                coordinates.remove((size - i - 1, 1))
-                coordinates.remove((i, size - 2))
-                coordinates.remove((size - 2, i))
+                if num_agents == 4:
+                    coordinates.remove((1, size - i - 1))
+                    coordinates.remove((size - i - 1, 1))
+                    coordinates.remove((i, size - 2))
+                    coordinates.remove((size - 2, i))
 
         # Lay down wooden walls providing guaranteed passage to other agents.
         wood = constants.Item.Wood.value

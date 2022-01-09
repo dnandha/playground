@@ -117,7 +117,6 @@ class WrappedEnv(OpenAIGym):
         mobs[pos[1], pos[0], 23] = obs['blast_strength']/10. # max = 10
 
         # center board around agent position
-        # not good: game borders + local information gets lost over time
         #board_center = np.array(obs['board'].shape) // 2
         #pos_shift = board_center - pos
         #mobs = np.roll(mobs, pos_shift[0], axis=1)

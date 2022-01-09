@@ -78,27 +78,51 @@ def ffa_competition_sb3_env():
     return locals()
 
 
-def ffa_competition_fast_env():
+def ffa_competition_fast_small_env():
     """Start up a FFA config with the competition settings."""
-    env = envs.v0.Pomme
     game_type = constants.GameType.FFA
     env_entry_point = 'pommerman.envs.v0:Pomme'
-    env_id = 'PommeFFACompetitionFast-v0'
-    env_kwargs = {
-        'game_type': game_type,
-        'board_size': constants.BOARD_SIZE,
-        'num_rigid': constants.NUM_RIGID,
-        'num_wood': constants.NUM_WOOD,
-        'num_items': constants.NUM_ITEMS,
-        'max_steps': constants.MAX_STEPS,
-        'render_fps': 1000,
-        'agent_view_size': constants.AGENT_VIEW_SIZE,
-        'is_partially_observable': True,
-        'env': env_entry_point,
-    }
+    env = envs.v0.Pomme
+    env_id = 'PommeFFACompetitionFastSmall-v0'
+    env_kwargs = ffa_competition_fast_kwargs(game_type, env_entry_point, 4, 2, 2, 1)
     agent = characters.Bomber
     return locals()
 
+def ffa_competition_fast_mid_env():
+    """Start up a FFA config with the competition settings."""
+    game_type = constants.GameType.FFA
+    env_entry_point = 'pommerman.envs.v0:Pomme'
+    env = envs.v0.Pomme
+    env_id = 'PommeFFACompetitionFastMid-v0'
+    env_kwargs = ffa_competition_fast_kwargs(game_type, env_entry_point, 7, 4, 4, 3)
+    agent = characters.Bomber
+    return locals()
+
+def ffa_competition_fast_big_env():
+    """Start up a FFA config with the competition settings."""
+    game_type = constants.GameType.FFA
+    env_entry_point = 'pommerman.envs.v0:Pomme'
+    env = envs.v0.Pomme
+    env_id = 'PommeFFACompetitionFastBig-v0'
+    env_kwargs = ffa_competition_fast_kwargs(game_type, env_entry_point, 11)
+    agent = characters.Bomber
+    return locals()
+
+def ffa_competition_fast_kwargs(game_type, env_entry_point,
+                                bs=constants.BOARD_SIZE, nr=constants.NUM_RIGID,
+                                nw=constants.NUM_WOOD, ni=constants.NUM_ITEMS):
+    return {
+        'game_type': game_type,
+        'board_size': bs,
+        'num_rigid': nr,
+        'num_wood': nw,
+        'num_items': ni,
+        'max_steps': constants.MAX_STEPS,
+        'render_fps': 1000,
+        'agent_view_size': min(bs, constants.AGENT_VIEW_SIZE),
+        'is_partially_observable': True,
+        'env': env_entry_point,
+    }
 
 def team_competition_env():
     """Start up a Team config with the competition settings."""
