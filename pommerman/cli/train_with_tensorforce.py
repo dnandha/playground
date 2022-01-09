@@ -192,8 +192,8 @@ def main():
         "configs.py for options.")
     parser.add_argument(
         "--agents",
-        default="tensorforce::ppo,test::agents.SimpleAgent,"
-        "test::agents.SimpleAgent,test::agents.SimpleAgent",
+        default="tensorforce::ppo,test::agents.FauxAgent",
+        #",test::agents.SimpleAgent,test::agents.SimpleAgent",
         help="Comma delineated list of agent types and docker "
         "locations to run the agents.")
     parser.add_argument(
