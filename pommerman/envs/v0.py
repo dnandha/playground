@@ -66,6 +66,10 @@ class Pomme(gym.Env):
         self._set_action_space()
         self._set_observation_space()
 
+        self.agents_pos_rec = [[], [], [], []]
+
+
+
     def _set_action_space(self):
         self.action_space = spaces.Discrete(6)
 
@@ -98,6 +102,8 @@ class Pomme(gym.Env):
 
     def set_agents(self, agents):
         self._agents = agents
+
+
 
     def set_training_agent(self, agent_id):
         self.training_agent = agent_id
@@ -132,6 +138,10 @@ class Pomme(gym.Env):
         self._items = utility.make_items(self._board, self._num_items)
 
     def act(self, obs):
+
+        #get a variable for reward shaping
+        self.last_obs = obs
+
         agents = [agent for agent in self._agents \
                   if agent.agent_id != self.training_agent]
         return self.model.act(agents, obs, self.action_space)
@@ -146,7 +156,8 @@ class Pomme(gym.Env):
         return self.observations
 
     def _get_rewards(self):
-        return self.model.get_rewards(self._agents, self._game_type,
+
+        return self.model.get_rewards( self.agents_pos_rec ,self.last_obs, self.observations, self._agents, self._game_type,
                                       self._step_count, self._max_steps)
 
     def _get_done(self):
@@ -186,6 +197,8 @@ class Pomme(gym.Env):
         self._intended_actions = actions
 
         max_blast_strength = self._agent_view_size or 10
+
+
         result = self.model.step(
             actions,
             self._board,
@@ -196,6 +209,7 @@ class Pomme(gym.Env):
             max_blast_strength=max_blast_strength)
         self._board, self._agents, self._bombs, self._items, self._flames = \
                                                                     result[:5]
+
 
         done = self._get_done()
         obs = self.get_observations()

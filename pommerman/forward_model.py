@@ -11,6 +11,7 @@ from . import utility
 class ForwardModel(object):
     """Class for helping with the [forward] modeling of the game state."""
 
+
     def run(self,
             num_times,
             board,
@@ -59,11 +60,13 @@ class ForwardModel(object):
                 board, agents, bombs, is_partially_observable, agent_view_size)
             actions = self.act(
                 agents, obs, action_space, is_communicative=is_communicative)
+
+
             board, agents, bombs, items, flames = self.step(
                 actions, board, agents, bombs, items, flames)
             next_obs = self.get_observations(
                 board, agents, bombs, is_partially_observable, agent_view_size)
-            reward = self.get_rewards(agents, game_type, step_count, max_steps)
+            reward = self.get_rewards(obs, agents, game_type, step_count, max_steps)
             done = self.get_done(agents, game_type, step_count, max_steps,
                                  training_agent)
             info = self.get_info(done, rewards, game_type, agents)
@@ -79,6 +82,8 @@ class ForwardModel(object):
                 for agent in agents:
                     agent.episode_end(reward[agent.agent_id])
                 break
+
+
         return steps, board, agents, bombs, items, flames, done, info
 
     @staticmethod
@@ -131,6 +136,7 @@ class ForwardModel(object):
              curr_flames,
              max_blast_strength=10):
         board_size = len(curr_board)
+
 
         # Tick the flames. Replace any dead ones with passages. If there is an
         # item there, then reveal that item.
@@ -625,12 +631,16 @@ class ForwardModel(object):
                 'result': constants.Result.Incomplete,
             }
 
-    @staticmethod
-    def get_rewards(agents, game_type, step_count, max_steps):
 
+    @staticmethod
+    def get_rewards(agents_pos_rec ,last_obs, obs, agents, game_type, step_count, max_steps):
+        # print("getting reward")
+        # print(obs)
         def any_lst_equal(lst, values):
             '''Checks if list are equal'''
             return any([lst == v for v in values])
+
+
 
         alive_agents = [num for num, agent in enumerate(agents) \
                         if agent.is_alive]
@@ -645,6 +655,13 @@ class ForwardModel(object):
                 # Game running: 0 for alive, -1 for dead.
                 return [int(agent.is_alive) - 1 for agent in agents]
         elif game_type == constants.GameType.OneVsOne:
+            # r1 = 0
+            # r2 = 0
+            r_list = [0 , 0]
+            #print("running 1 vs 1")
+            # print(obs[0])
+            # if obs[0]['can_kick'] == True:
+            #         print("agent 1 can kick")
             if len(alive_agents) == 1:
                 # An agent won. Give them +1, the other -1.
                 return [2 * int(agent.is_alive) - 1 for agent in agents]
@@ -653,21 +670,138 @@ class ForwardModel(object):
                 return [-1] * 2
             else:
                 # Game running
-                return [0, 0]
+                # return [0, 0]
+                for i in range(len(r_list)):
+                    if obs[i]['can_kick'] == True:
+                        r_list[i] += 0.02
+                    if obs[i]['ammo'] != 0:
+                        r_list[i] += 0.01 * obs[i]['ammo']
+                    if obs[i]['blast_strength'] != 0:
+                        r_list[i] += 0.01 * obs[i]['blast_strength']
+
+                # if obs[0]['can_kick'] == True:
+                #     r1+=0.02
+                # if obs[0]['ammo'] != 0:
+                #     r1+=0.01 * obs[0]['ammo']
+                #
+                # if obs[1]['can_kick'] == True:
+                #     r2+=0.02
+                # if obs[1]['ammo'] != 0:
+                #     r2+=0.01 * obs[0]['ammo']
+                return r_list
         else:
             # We are playing a team game.
-            if any_lst_equal(alive_agents, [[0, 2], [0], [2]]):
-                # Team [0, 2] wins.
+            #print('We are playing a team game.')
+
+            if alive_agents == [0, 2]:
+                #print('Team [0, 2] wins.')
                 return [1, -1, 1, -1]
-            elif any_lst_equal(alive_agents, [[1, 3], [1], [3]]):
-                # Team [1, 3] wins.
+            elif alive_agents == [0]:
+                #print('Team [0, 2] wins. agent 0 alive')
+                return [1, -1, 0.5, -1]
+            elif alive_agents == [2]:
+                #print('Team [0, 2] wins. agent 2 alive')
+                return [0.5, -1, 1, -1]
+
+            elif alive_agents == [1,3]:
+                #print('Team [1, 3] wins.')
                 return [-1, 1, -1, 1]
+            elif alive_agents == [1]:
+                #print('Team [1, 3] wins. agent 1 alive')
+                return [-1, 1, -1, 0.5]
+            elif alive_agents == [3]:
+                #print('Team [1, 3] wins. agent 3 alive')
+                return [-1, 0.5, -1, 1]
+
+
+            # if any_lst_equal(alive_agents, [[0, 2], [0], [2]]):
+            #     # Team [0, 2] wins.
+            #     return [1, -1, 1, -1]
+            # elif any_lst_equal(alive_agents, [[1, 3], [1], [3]]):
+            #     # Team [1, 3] wins.
+            #     return [-1, 1, -1, 1]
+
             elif step_count >= max_steps:
                 # Game is over by max_steps. All agents tie.
-                return [-1] * 4
+                # return [-1] * 4
+                # for reward shaping: tie game , all get 0
+                return [0, 0, 0, 0]
             elif len(alive_agents) == 0:
                 # Everyone's dead. All agents tie.
-                return [-1] * 4
+                # return [-1] * 4
+
+                # for reward shaping: tie game , all get 0
+                return [0, 0, 0, 0]
             else:
                 # No team has yet won or lost.
-                return [0] * 4
+                # return [0] * 4
+                r_list = [0, 0, 0, 0]
+                for i in range(len(r_list)):
+                    if last_obs[i]['can_kick'] == False and obs[i]['can_kick'] == True:
+                        r_list[i] += 0.02
+                    if last_obs[i]['ammo'] < obs[i]['ammo'] :
+                        r_list[i] += 0.01 # * obs[i]['ammo']
+                    if last_obs[i]['blast_strength'] < obs[i]['blast_strength'] :
+                        r_list[i] += 0.01 #* obs[i]['blast_strength']
+
+
+                #Going to a cell not in a 121-length FIFO queue gets 0.001
+                curr_agents_pos = [ag['position'] for ag in obs]
+                for i, p in enumerate(agents_pos_rec):
+                    if curr_agents_pos[i] not in p:
+                        #print("get readr")
+                        r_list[i] += 0.001
+
+
+                    if len(p) == 121:
+                        #print('del p0')
+                        p.pop(0)
+                    p.append(curr_agents_pos[i])
+
+
+                # if 3 agents are alive: 012, 023, 013, 123
+                ## team [0,2] get 0.5 and team [1,3] get -0.5 : 012, 023,
+                ## team [1,3] get 0.5 and team [0,2] get -0.5 : 013, 123,
+
+                # if 2 agents are alive : 01, 03 , 12, 23, each team one agent dead,
+
+                ## team [0,2] get 0.5 and team [1,3] get -0.5 : 012, 023,
+                if any_lst_equal(alive_agents, [[0, 1, 2], [0, 2, 3] ]):
+                    if len(last_obs[0]['alive']) == 4:
+                        r_list[0] += 0.5
+                        r_list[2] += 0.5
+
+                        r_list[1] += -0.5
+                        r_list[3] += -0.5
+
+                ## team [1,3] get 0.5 and team [0,2] get -0.5 : 013, 123,
+                if  any_lst_equal(alive_agents, [[0, 1, 3], [1, 2, 3] ]):
+                    if len(last_obs[0]['alive']) == 4:
+                        r_list[0] += -0.5
+                        r_list[2] += -0.5
+
+                        r_list[1] += 0.5
+                        r_list[3] += 0.5
+
+                # if 2 agents are alive : 01, 03 , 12, 23, each team one agent dead,
+
+                if any_lst_equal(last_obs[0]['alive'],[[10,11,12],  [10, 12, 13]]):
+                    if len(alive_agents) == 2:
+
+                        r_list[0] += -0.5
+                        r_list[2] += -0.5
+
+                        r_list[1] += 0.5
+                        r_list[3] += 0.5
+
+                if any_lst_equal(last_obs[0]['alive'],[[10,11,13],  [11, 12, 13]]):
+                    if len(alive_agents) == 2:
+
+                        r_list[0] += 0.5
+                        r_list[2] += 0.5
+
+                        r_list[1] += -0.5
+                        r_list[3] += -0.5
+
+
+                return r_list
