@@ -783,18 +783,10 @@ class ForwardModel(object):
                         r_list[1] += 0.5
                         r_list[3] += 0.5
 
+
                 # if 2 agents are alive : 01, 03 , 12, 23, each team one agent dead,
 
                 if any_lst_equal(last_obs[0]['alive'],[[10,11,12],  [10, 12, 13]]):
-                    if len(alive_agents) == 2:
-
-                        r_list[0] += -0.5
-                        r_list[2] += -0.5
-
-                        r_list[1] += 0.5
-                        r_list[3] += 0.5
-
-                if any_lst_equal(last_obs[0]['alive'],[[10,11,13],  [11, 12, 13]]):
                     if len(alive_agents) == 2:
 
                         r_list[0] += 0.5
@@ -802,6 +794,15 @@ class ForwardModel(object):
 
                         r_list[1] += -0.5
                         r_list[3] += -0.5
+
+                if any_lst_equal(last_obs[0]['alive'],[[10,11,13],  [11, 12, 13]]):
+                    if len(alive_agents) == 2:
+
+                        r_list[0] += -0.5
+                        r_list[2] += -0.5
+
+                        r_list[1] += 0.5
+                        r_list[3] += 0.5
 
 
                 return r_list
